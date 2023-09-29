@@ -1,4 +1,4 @@
-struct AberrationParameters{T} where T<:Real
+struct AberrationParameters{T<:Real}
     Defocus::T
 end
 
@@ -11,11 +11,21 @@ struct Parameters
     Voltage::Real
     Semiangle::Real
     dx::Real
-    Scan::ScanTrajectory{Real}
+    Scan::ScanTrajectory
     Aberrations::AberrationParameters{Real}
 end
 
-struct DiffractionPatterns{T} where T<:Real
+function Parameters(Voltage,Semiangle,dx,ScanStep,Angle,Defocus)
+    return Parameters(Voltage,
+                      Semiangle,
+                      dx,
+                      ScanTrajectory(ScanStep,
+                                     Angle),
+                      AbberationParameters(Defocus)
+                      )
+end
+
+struct DiffractionPatterns{T<:Real}
     DPs::Array{T,4}
 end
 

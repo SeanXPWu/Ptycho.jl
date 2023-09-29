@@ -1,4 +1,4 @@
-struct Probe{T} where T<:Real
+struct Probe{T<:Real}
     ProbeMatrix::Array{T,3}
     RecordStep::Integer
 end
@@ -7,7 +7,7 @@ function init_probe()
 
 end
 
-struct Object{T} where T<:Real
+struct Object{T<:Real}
     ObjectMatrix::Array{T,3}
     RecordStep::Integer
 end
