@@ -29,7 +29,7 @@ function Parameters(Voltage, Semiangle, dx, ScanStep, Angle, Defocus)
 end
 
 struct DiffractionPatterns{T<:Real}
-    DPs::Array{T,4}
+    DPs::Array{T}
 end
 
 function size(dps::DiffractionPatterns)
@@ -53,11 +53,18 @@ function load_dp(filename::String, varname::String)
     return dp
 end
 
-function load_dps(dirpath::String, varname::String = "dp")
+function load_dps(
+    dirpath::String,
+    scansize::T,
+    varname::String = "dp",
+) where {T<:Tuple{Integer,Integer}}
     files = readdir(dirpath)
+    if length(files) != prod(scansize)
+        error("Number of files in $dirpath does not match scan dimensions.")
+    end
     tmp = load_dp(files[1], varname)
     x, y = Base.size(tmp)
-    dps = Array{UInt8,3}(undef, x, y, length(files))
+    dps = Array{UInt8,3}(undef, x, y, scansize[1], scansize[2])
     for (i, filename) in enumerate(files)
         tmp = load_dp(filename, varname)
         dps[:, :, i] = tmp

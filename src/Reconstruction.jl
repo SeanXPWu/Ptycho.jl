@@ -6,8 +6,13 @@ struct Probe{T<:Real}
     RecordStep::Integer
 end
 
-function init_probe()
+function init_probe(params::Parameters, dps::DiffractionPatterns)
+    x, y = size(dps)[1:2]
+    return Probe(Array{ComplexF64,2}(undef, x, y), 1)
+end
 
+function init_probe(ds::DataSet)
+    return init_probe(ds.Params, ds.DPs)
 end
 
 struct Object{T<:Real}
