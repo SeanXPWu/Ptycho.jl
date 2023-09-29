@@ -17,14 +17,14 @@ struct Parameters
     Aberrations::AberrationParameters{Real}
 end
 
-function Parameters(Voltage,Semiangle,dx,ScanStep,Angle,Defocus)
-    return Parameters(Voltage,
-                      Semiangle,
-                      dx,
-                      ScanTrajectory(ScanStep,
-                                     Angle),
-                      AbberationParameters(Defocus)
-                      )
+function Parameters(Voltage, Semiangle, dx, ScanStep, Angle, Defocus)
+    return Parameters(
+        Voltage,
+        Semiangle,
+        dx,
+        ScanTrajectory(ScanStep, Angle),
+        AbberationParameters(Defocus),
+    )
 end
 
 struct DiffractionPatterns{T<:Real}
