@@ -1,4 +1,5 @@
 export AberrationParameters, ScanTrajectory, Parameters, DiffractionPatterns, DataSet
+export load_dp
 
 struct AberrationParameters{T<:Real}
     Defocus::T
