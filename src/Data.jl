@@ -64,7 +64,7 @@ function load_dps(
     scansize::T,
     varname::String = "dp",
 ) where {T<:Tuple{Integer,Integer}}
-    files = readdir(dirpath)
+    files = readdir(dirpath, join=true, sort=false)
     if length(files) != prod(scansize)
         error("Number of files in $dirpath does not match scan dimensions.")
     end
@@ -72,8 +72,10 @@ function load_dps(
     x, y = Base.size(tmp)
     dps = Array{UInt8,4}(undef, x, y, scansize[1], scansize[2])
     for (i, filename) in enumerate(files)
-        tmp = load_dp(dirpath*filename, varname)
-        dps[:, :, i%scansize(1), i÷scansize(1)+1] = tmp
+        tmp = load_dp(filename, varname)
+        y = (i-1) ÷ scansize[1] + 1
+        x = i-(y-1)*scansize[1]
+        dps[:, :, x, y] = tmp
     end
     return DiffractionPatterns(dps)
 end
