@@ -34,7 +34,6 @@ function init_probe(params::Parameters, dps::DiffractionPatterns, step::Integer=
     aperture[ind] .= 0.5*(1 .- sin.(pi/(2*dEdge)*(temp[ind]/(params.Semiangle*1e-3).-1)))
     probe = exp.(im.*aberr).*aperture
     probe = Ptycho_fft2(probe);
-    print(length(probe))
     probe=probe./sqrt.(sum(sum(abs.(probe.*conj.(probe)))))*sqrt.(sum(sum(abs.(dps.DPs[:,:,1,1].*conj.(dps.DPs[:,:,1,1])))))
     imshow(abs.(probe))
     return Probe(probe, step)
