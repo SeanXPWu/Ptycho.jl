@@ -1,21 +1,21 @@
 export Probe, Object, UpdateParameters, Reconstruction
 export init_probe, save_recon
 
-struct Probe{T<:Real}
-    ProbeMatrix::Array{T,3}
+struct Probe{T<:Number}
+    ProbeMatrix::Array{T,2}
     RecordStep::Integer
 end
 
 function Ptycho_fft2(x)
-    xif = ifftshift(ifft(fftshift(x)))*sqrt.(length(x));
+    xif = ifftshift(fft(fftshift(x)))./sqrt(length(x));
     return(xif)
 end
 
-function init_probe(params::Parameters, dps::DiffractionPatterns)
+function init_probe(params::Parameters, dps::DiffractionPatterns, step::Integer=1)
     x, y = size(dps)[1:2]
     lamda= 1.23984244/sqrt(params.Voltage*(2*510.99906+params.Voltage))*1e-9
     temp1= (-1/2*x):(1/2*x-1)
-    temp1=temp1*1e10*lamda/p.dp.dxy/p.dp.size(1)
+    temp1=temp1*1e10*lamda/params.dx/x
     temp2= (-1/2*y):(1/2*y-1)
     temp2=temp2*1e10*lamda/params.dx/y
     k1=temp1' .* ones(length(temp2))
@@ -25,16 +25,19 @@ function init_probe(params::Parameters, dps::DiffractionPatterns)
     C1   = params.Aberrations.Defocus*exp(0)*1e-9
     kai=real(1/2*w.*wi*C1)
     aberr = -2*pi/lamda*kai
-    apeture=(k1.^2+k2.^2)<=(params.Semiangle*1e-3).^2
-    temp=sqrt((k1.^2+k2.^2))
+    aperture= zeros(x,y)
+    aperture[(k1.^2+k2.^2).<=(params.Semiangle*1e-3)^2] .= 1
+    temp=sqrt.((k1.^2+k2.^2))
     Nedge=2
     dEdge = Nedge*lamda*1e10/(params.Semiangle*1e-3)/x/params.dx;
     ind = findall((i/(params.Semiangle*1e-3) > 1-dEdge) && (i/(params.Semiangle*1e-3) < 1+dEdge) for i in temp)
-    apeture[ind] = 0.5*(1-sin(pi/(2*dEdge)*(temp(ind)/(params.Semiangle*1e-3)-1)))
-    probe = exp(im.*aberr).*apeture
+    aperture[ind] .= 0.5*(1 .- sin.(pi/(2*dEdge)*(temp[ind]/(params.Semiangle*1e-3).-1)))
+    probe = exp.(im.*aberr).*aperture
     probe = Ptycho_fft2(probe);
-    probe=probe/sqrt(sum(sum(abs(probe.*conj(probe)))))*sqrt(sum(sum(abs(dp_ref.*conj(dp_ref)))))
-    return Probe(Array{ComplexF64,2}(undef, x, y), 1)
+    print(length(probe))
+    probe=probe./sqrt.(sum(sum(abs.(probe.*conj.(probe)))))*sqrt.(sum(sum(abs.(dps.DPs[:,:,1,1].*conj.(dps.DPs[:,:,1,1])))))
+    imshow(abs.(probe))
+    return Probe(probe, step)
 end
 
 function init_probe(ds::DataSet)
