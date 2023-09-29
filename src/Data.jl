@@ -1,3 +1,5 @@
+export Parameters, DiffractionPatterns, DataSet
+
 struct AberrationParameters{T<:Real}
     Defocus::T
 end

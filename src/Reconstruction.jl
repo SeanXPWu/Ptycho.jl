@@ -1,3 +1,6 @@
+export Probe, Object, UpdateParameters, Reconstruction
+export save
+
 struct Probe{T<:Real}
     ProbeMatrix::Array{T,3}
     RecordStep::Integer
