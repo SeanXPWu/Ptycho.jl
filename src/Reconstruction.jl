@@ -26,6 +26,15 @@ struct Reconstruction
     UpdateParameters::UpdateParameters
 end
 
-function save(filepath::String, recon::Reconstruction)
-
+function save_recon(filepath::String, recon::Reconstruction, ext::String)
+    if ext == "mat"
+        file = matopen(filepath, "w")
+    elseif ext == "jld2"
+        file = jldopen(filepath, "w")
+    end
+    write(file, "Probe", recon.Probe)
+    write(file, "Object", recon.Object)
+    write(file, "Iteration", recon.Iteration)
+    write(file, "UpdateParameters", recon.UpdateParameters)
+    close(file)
 end

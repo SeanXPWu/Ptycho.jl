@@ -8,7 +8,7 @@ using Unitful
 
 using JLD2, MAT
 
-import Base: read
+import Base: read, size
 
 include("Data.jl")
 include("Reconstruction.jl")
