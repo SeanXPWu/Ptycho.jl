@@ -34,11 +34,6 @@ struct DataSet
     DPs::DiffractionPatterns
 end
 
-function read(filename::String)
-
-    return DiffractionPatterns{}()
-end
-
 function save(filepath::String, data::DataSet)
 
 end

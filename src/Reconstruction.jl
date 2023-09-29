@@ -23,11 +23,6 @@ struct Reconstruction
     UpdateParameters::UpdateParameters
 end
 
-function read(filename::String)
-
-    return Reconstruction{}()
-end
-
 function save(filepath::String, recon::Reconstruction)
 
 end
