@@ -1,4 +1,4 @@
-export AberrationParameters, Parameters, DiffractionPatterns, DataSet
+export AberrationParameters, ScanTrajectory, Parameters, DiffractionPatterns, DataSet
 
 struct AberrationParameters{T<:Real}
     Defocus::T
@@ -14,7 +14,7 @@ struct Parameters
     Semiangle::Real
     dx::Real
     Scan::ScanTrajectory
-    Aberrations::AberrationParameters{Real}
+    Aberrations::AberrationParameters
 end
 
 function Parameters(Voltage, Semiangle, dx, ScanStep, Angle, Defocus)
@@ -23,7 +23,7 @@ function Parameters(Voltage, Semiangle, dx, ScanStep, Angle, Defocus)
         Semiangle,
         dx,
         ScanTrajectory(ScanStep, Angle),
-        AbberationParameters(Defocus),
+        AberrationParameters(Defocus),
     )
 end
 
