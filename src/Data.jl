@@ -1,5 +1,5 @@
 export AberrationParameters, ScanTrajectory, Parameters, DiffractionPatterns, DataSet
-export load_dp, save_dataset
+export load_dp, load_dps, save_dataset
 
 struct AberrationParameters{T<:Real}
     Defocus::T
@@ -54,6 +54,11 @@ function load_dp(filename::String, varname::String)
     return dp
 end
 
+"""
+Load diffraction patterns from a collection of data files in a directory.
+
+The scansize is a tuple of the form (x, y) where x and y are the number of scan points in the x and y directions respectively.
+"""
 function load_dps(
     dirpath::String,
     scansize::T,
