@@ -6,7 +6,7 @@ using KernelAbstractions
 
 using Unitful
 
-using JLD2
+using JLD2, MAT
 
 import Base: read
 

@@ -36,6 +36,16 @@ struct DataSet
     DPs::DiffractionPatterns
 end
 
+function load_dp(filename::String, varname::String)
+    ext = split(filename,".")[end]
+    if ext == "mat"
+        file = matopen(filename)
+    end
+    dp = read(file, varname)
+    close(file)
+    return dp
+end
+
 function save(filepath::String, data::DataSet)
 
 end
