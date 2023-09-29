@@ -1,5 +1,5 @@
 export Probe, Object, UpdateParameters, Reconstruction
-export init_probe, save_recon
+export init_probe, save_recon, init_trans
 
 struct Probe{T<:Number}
     ProbeMatrix::Array{T,2}
@@ -71,3 +71,25 @@ function save_recon(filepath::String, recon::Reconstruction, ext::String)
     write(file, "UpdateParameters", recon.UpdateParameters)
     close(file)
 end
+
+function init_trans(params::Parameters, dps::DiffractionPatterns)
+    count=0
+    x, y = size(dps)[3:4]
+    trans_related_x=ones(1,length(x*y))
+    trans_related_y=ones(1,length(x*y))
+    for ii=1:x
+        for jj=1:y
+            count=count+1
+            trans_related_x(count)=ii*params.ScanTrajectory.ScanStep/params.dx*cos(params.ScanTrajectory.Angle*pi/180) - jj*params.ScanTrajectory.ScanStep/params.dx*sin(params.ScanTrajectory.Angle*pi/180)
+            trans_related_y(count)=ii*params.ScanTrajectory.ScanStep/pparams.dx*sin(params.ScanTrajectory.Angle*pi/180) + jj*params.ScanTrajectory.ScanStep/params.dx*cos(params.ScanTrajectory.Angle*pi/180)
+        end
+    end
+end
+
+    #[p.dpList, trans_related ] = generate_dpList( p.trans.dp_num, trans_related, p.dp.load_mode, p.dp.load_para);
+    #p.dp.num = length(p.dpList);
+    #trans_exec.x= trans_related.x-floor(min(trans_related.x))+ceil(p.recon.dxy_adjustment(1));
+    #trans_exec.y= trans_related.y-floor(min(trans_related.y))+ceil(p.recon.dxy_adjustment(2));
+    #length_x=max(trans_exec.x)-min(trans_exec.x);
+    #length_y=max(trans_exec.y)-min(trans_exec.y);
+    #p.recon.recon_size=[ceil(length_x),ceil(length_y)]+p.dp.size+ceil(p.recon.dxy_adjustment)*2;
