@@ -8,6 +8,7 @@ end
 struct ScanTrajectory
     ScanStep::Real
     Angle::Real
+    
 end
 
 struct Parameters
