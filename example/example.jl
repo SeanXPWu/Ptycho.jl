@@ -13,7 +13,7 @@ recon, trans_exec, dpList = prestart(params,dps,0.01,0.01)
 iter_step = 1
 rmse_list = Vector{Float64}(undef, iter_step)
 for i = 1:iter_step
-    @time recon,rmse = iterate(recon,trans_exec,dps)
+    @time recon,rmse = iterate(recon,trans_exec,dps,dpList)
     rmse_list[i] = rmse
 end
 return recon,rmse_list,dps, trans_exec

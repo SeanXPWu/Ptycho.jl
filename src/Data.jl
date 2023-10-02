@@ -94,7 +94,8 @@ function load_dps_3d(
     tmp = load_dp(files[1], varname)
     x, y = Base.size(tmp)
     dps = Array{UInt8,3}(undef, x, y, scansize[1]*scansize[2])
-    for (i, filename) in enumerate(files)
+    for i =1:length(files)
+        filename="$dirpath/dp_$i.mat"
         tmp = load_dp(filename, varname)
         dps[:, :, i] = tmp
     end

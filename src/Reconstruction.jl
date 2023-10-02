@@ -145,27 +145,25 @@ function rmse(arr1::T,arr2::T) where T<:AbstractArray
     return sqrt(sum((arr1.-arr2).^2))
 end
 
-function iterate(recon::Reconstruction,trans_exec,dps::DiffractionPatterns)
+function iterate(recon::Reconstruction,trans_exec,dps::DiffractionPatterns,dpList)
         current_rmse=0
         obj = copy(recon.Object.ObjectMatrix)
         probe = copy(recon.Probe.ProbeMatrix)
-        obj_new=ones(ComplexF64, size(obj))
-        for count_dp=1:length(dps.DPs[1,1,:])
+        for count_dp=1:length(dpList)
                 sx = round(Int, trans_exec[count_dp,1]):round(Int,trans_exec[count_dp,1]+size(dps)[1]-1)
                 sy = round(Int,trans_exec[count_dp,2]):round(Int,trans_exec[count_dp,2]+size(dps)[2]-1)
                 #x =(count_dp-1) ÷ size(dps)[3]+1
                 #y = count_dp-(x-1)*size(dps)[3]
-                dp_current=Float64.(dps.DPs[:,:,count_dp])
-                obj_cut = obj[sx,sy]
-                ew = obj_cut .* probe
+                dp_current=Float32.(dps.DPs[:,:,count_dp])
+                ew = obj[sx,sy] .* probe
                 ewf = Ptycho_fft2(ew)
                 ewfn = dp_current .* exp.(im.*angle.(ewf))
                 ew1 = Ptycho_ifft2(ewfn)
                 probe0 = probe
-                probe = probe .+ recon.ProbeUpdate.*(ew1.-ew) .* conj.(obj_cut) ./maximum(abs.(obj_cut).^2)
-                obj_new[sx,sy] = obj_cut .+ recon.ObjUpdate .*(ew1.-ew) .* conj.(probe0) ./maximum(abs.(probe0).^2)
-                current_rmse=current_rmse+rmse(abs.(ewf),dp_current)
+                probe = probe .+ recon.ProbeUpdate.*(ew1.-ew) .* conj.(obj[sx,sy]) ./maximum(abs.(obj[sx,sy]).^2)
+                obj[sx,sy] = obj[sx,sy] .+ recon.ObjUpdate .*(ew1.-ew) .* conj.(probe0) ./maximum(abs.(probe0).^2)
+                current_rmse=current_rmse+rmse(abs.(ewf),Float64.(dp_current))
         end
         current_rmse=current_rmse/length(dps.DPs[1,1,:,:])
-        return Reconstruction(Object(obj_new,1),Probe(probe,1),recon.ObjUpdate, recon.ProbeUpdate,recon.Iteration+1), current_rmse
+        return Reconstruction(Object(obj,1),Probe(probe,1),recon.ObjUpdate, recon.ProbeUpdate,recon.Iteration+1), current_rmse
 end
