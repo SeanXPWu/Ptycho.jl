@@ -6,11 +6,27 @@ struct Probe{T<:Number}
     RecordStep::Integer
 end
 
+"""
+Convert array to the desinated backend and precision.
+"""
+function to_backend(backend::B, precision::T, arr::A) where {B<:Backend, T<:DataType, A<:Array{<:Any}}
+    if backend == CPU()
+        return Array{precision}(arr)
+    else
+        gpuarr = allocate(backend, precision, size(arr))
+        copyto!(gpuarr, arr)
+        return gpuarr
+    end
+end
+
 function Ptycho_fft2(x)
     xif = ifftshift(fft(fftshift(x))) ./ sqrt(length(x))
     return (xif)
 end
 
+"""
+Generate a guess probe with the given parameters.
+"""
 function init_probe(params::Parameters, dps::DiffractionPatterns)
     x, y = size(dps)[1:2]
     lamda = 1.23984244 / sqrt(params.Voltage * (2 * 510.99906 + params.Voltage)) * 1e-9
@@ -65,6 +81,9 @@ struct Reconstruction
     UpdateParameters::UpdateParameters
 end
 
+"""
+Save the reconstruction data to a file with the given extension.
+"""
 function save_recon(filepath::String, recon::Reconstruction, ext::String)
     if ext == "mat"
         file = matopen(filepath, "w")
@@ -109,6 +128,9 @@ function init_obj(recon_size)
     return Object(ones(ComplexF32, recon_size), 1)
 end
 
+"""
+Initialize a reconstruction with the given parameters and diffraction patterns.
+"""
 function prestart(params::Parameters,dps::DiffractionPatterns)
     trans_related = init_trans(params,dps)
     dpList = generate_dpList(params,dps)
