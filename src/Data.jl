@@ -1,5 +1,5 @@
 export AberrationParameters, ScanTrajectory, Parameters, DiffractionPatterns, DataSet
-export load_dp, load_dps, save_dataset
+export load_dp, load_dps, save_dataset, load_dps_3d
 
 struct AberrationParameters{T<:Real}
     Defocus::T
@@ -17,6 +17,7 @@ struct Parameters
     dx::Real
     Scan::ScanTrajectory
     Aberrations::AberrationParameters
+    Adjustment::Integer
 end
 
 function Parameters(Voltage, Semiangle, dx, ScanStep, Angle, Defocus)
@@ -26,6 +27,7 @@ function Parameters(Voltage, Semiangle, dx, ScanStep, Angle, Defocus)
         dx,
         ScanTrajectory(ScanStep, Angle),
         AberrationParameters(Defocus),
+        50
     )
 end
 
@@ -74,11 +76,31 @@ function load_dps(
     for (i, filename) in enumerate(files)
         tmp = load_dp(filename, varname)
         y = (i-1) ÷ scansize[1] + 1
-        x = i-(y-1)*scansize[1]
+        x = i - (y-1)*scansize[1]
         dps[:, :, x, y] = tmp
     end
     return DiffractionPatterns(dps)
 end
+
+function load_dps_3d(
+    dirpath::String,
+    scansize::T,
+    varname::String = "dp",
+) where {T<:Tuple{Integer,Integer}}
+    files = readdir(dirpath, join=true, sort=false)
+    if length(files) != prod(scansize)
+        error("Number of files in $dirpath does not match scan dimensions.")
+    end
+    tmp = load_dp(files[1], varname)
+    x, y = Base.size(tmp)
+    dps = Array{UInt8,3}(undef, x, y, scansize[1]*scansize[2])
+    for (i, filename) in enumerate(files)
+        tmp = load_dp(filename, varname)
+        dps[:, :, i] = tmp
+    end
+    return DiffractionPatterns(dps)
+end
+
 
 function save_dataset(filepath::String, data::DataSet, ext::String = "mat")
     if ext == "mat"

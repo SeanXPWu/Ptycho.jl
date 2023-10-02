@@ -1,5 +1,5 @@
 export Probe, Object, UpdateParameters, Reconstruction
-export init_probe, save_recon, init_trans, generate_dpList
+export init_probe, save_recon, init_trans, generate_dpList, prestart, iterate
 
 struct Probe{T<:Number}
     ProbeMatrix::Array{T,2}
@@ -8,6 +8,11 @@ end
 
 function Ptycho_fft2(x)
     xif = ifftshift(fft(fftshift(x))) ./ sqrt(length(x))
+    return (xif)
+end
+
+function Ptycho_ifft2(x)
+    xif = ifftshift(ifft(fftshift(x))) .* sqrt(length(x))
     return (xif)
 end
 
@@ -41,7 +46,6 @@ function init_probe(params::Parameters, dps::DiffractionPatterns)
     probe =
         probe ./ sqrt.(sum(sum(abs.(probe .* conj.(probe))))) *
         sqrt.(sum(sum(abs.(dps.DPs[:, :, 1, 1] .* conj.(dps.DPs[:, :, 1, 1])))))
-    imshow(abs.(probe))
     return Probe(probe, 1)
 end
 
@@ -50,19 +54,16 @@ function init_probe(ds::DataSet)
 end
 
 struct Object{T<:Complex}
-    ObjectMatrix::Array{T,3}
+    ObjectMatrix::Array{T,2}
     RecordStep::Integer
 end
 
-struct UpdateParameters
-
-end
-
 struct Reconstruction
-    Probe::Probe
     Object::Object
+    Probe::Probe
+    ObjUpdate::AbstractFloat
+    ProbeUpdate::AbstractFloat
     Iteration::Integer
-    UpdateParameters::UpdateParameters
 end
 
 function save_recon(filepath::String, recon::Reconstruction, ext::String)
@@ -80,45 +81,75 @@ end
 
 function init_trans(params::Parameters, dps::DiffractionPatterns)
     count = 0
-    x, y = size(dps)[3:4]
-    trans_related = Array{float64, 2}(undef,x * y, 2)
+    x, y = (128, 128)
+    trans_related = Array{Float64, 2}(undef,x * y, 2)
     for i = 1:x
         for j = 1:y
             count = count + 1
             trans_related[count, 1] =
-                i * params.ScanTrajectory.ScanStep / params.dx *
-                cos(params.ScanTrajectory.Angle * pi / 180) -
-                j * params.ScanTrajectory.ScanStep / params.dx *
-                sin(params.ScanTrajectory.Angle * pi / 180)
+                i * params.Scan.ScanStep / params.dx *
+                cos(params.Scan.Angle * pi / 180) -
+                j * params.Scan.ScanStep / params.dx *
+                sin(params.Scan.Angle * pi / 180)
             trans_related[count, 2] =
-                i * params.ScanTrajectory.ScanStep / pparams.dx *
-                sin(params.ScanTrajectory.Angle * pi / 180) +
-                j  * params.ScanTrajectory.ScanStep / params.dx *
-                cos(params.ScanTrajectory.Angle * pi / 180)
+                i * params.Scan.ScanStep / params.dx *
+                sin(params.Scan.Angle * pi / 180) +
+                j  * params.Scan.ScanStep / params.dx *
+                cos(params.Scan.Angle * pi / 180)
         end
     end
     return trans_related
 end
 
 function generate_dpList(params::Parameters, dps::DiffractionPatterns)
-    dpList = collect(1:length(dps.DPs[1,1,:,:]))
+    dpList = collect(1:length(dps.DPs[1,1,:]))
     return dpList
 end
 
 function init_obj(recon_size)
-    return Object(ones(ComplexF32, recon_size), 1)
+    return Object(ones(ComplexF32, ceil(Integer,recon_size[1]), ceil(Integer,recon_size[2])), 1)
 end
 
-function prestart(params::Parameters,dps::DiffractionPatterns)
+function prestart(params::Parameters,dps::DiffractionPatterns, objup::T, probeup::T) where T<:AbstractFloat
     trans_related = init_trans(params,dps)
     dpList = generate_dpList(params,dps)
     trans_exec = similar(trans_related)
-    trans_exec[:,1]= trans_related[:,1].-floor(minimum(trans_related[:,1]))+params.Adjustment;
-    trans_exec[:,2]= trans_related[:,2].-floor(minimum(trans_related[:,2]))+params.Adjustment;
-    length_x=maximum(trans_exec[:,1])-minimum(trans_exec[:,1]);
-    length_y=maximum(trans_exec[:,2])-minimum(trans_exec[:,2]);
-    recon_size=[ceil(length_x),ceil(length_y)].+size(dps)[1:2].+params.Adjustment*2;
+    trans_exec[:,1]= trans_related[:,1].-floor(minimum(trans_related[:,1])).+params.Adjustment
+    trans_exec[:,2]= trans_related[:,2].-floor(minimum(trans_related[:,2])).+params.Adjustment
+    length_x=maximum(trans_exec[:,1])-minimum(trans_exec[:,1])
+    length_y=maximum(trans_exec[:,2])-minimum(trans_exec[:,2])
+    recon_size=[ceil(length_x),ceil(length_y)].+size(dps)[1:2].+params.Adjustment*2
     obj = init_obj(recon_size)
     probe = init_probe(params, dps)
-    return obj, probe, trans_exec, dpList
+    recon = Reconstruction(obj,probe, objup, probeup, 0)
+    return recon, trans_exec, dpList
+end
+
+function rmse(arr1::T,arr2::T) where T<:AbstractArray
+    return sqrt(sum((arr1.-arr2).^2))
+end
+
+function iterate(recon::Reconstruction,trans_exec,dps::DiffractionPatterns)
+        current_rmse=0
+        obj = copy(recon.Object.ObjectMatrix)
+        probe = copy(recon.Probe.ProbeMatrix)
+        obj_new=ones(ComplexF64, size(obj))
+        for count_dp=1:length(dps.DPs[1,1,:])
+                sx = round(Int, trans_exec[count_dp,1]):round(Int,trans_exec[count_dp,1]+size(dps)[1]-1)
+                sy = round(Int,trans_exec[count_dp,2]):round(Int,trans_exec[count_dp,2]+size(dps)[2]-1)
+                #x =(count_dp-1) ÷ size(dps)[3]+1
+                #y = count_dp-(x-1)*size(dps)[3]
+                dp_current=Float64.(dps.DPs[:,:,count_dp])
+                obj_cut = obj[sx,sy]
+                ew = obj_cut .* probe
+                ewf = Ptycho_fft2(ew)
+                ewfn = dp_current .* exp.(im.*angle.(ewf))
+                ew1 = Ptycho_ifft2(ewfn)
+                probe0 = probe
+                probe = probe .+ recon.ProbeUpdate.*(ew1.-ew) .* conj.(obj_cut) ./maximum(abs.(obj_cut).^2)
+                obj_new[sx,sy] = obj_cut .+ recon.ObjUpdate .*(ew1.-ew) .* conj.(probe0) ./maximum(abs.(probe0).^2)
+                current_rmse=current_rmse+rmse(abs.(ewf),dp_current)
+        end
+        current_rmse=current_rmse/length(dps.DPs[1,1,:,:])
+        return Reconstruction(Object(obj_new,1),Probe(probe,1),recon.ObjUpdate, recon.ProbeUpdate,recon.Iteration+1), current_rmse
 end
