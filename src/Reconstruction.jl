@@ -6,6 +6,19 @@ struct Probe{T<:Number}
     RecordStep::Integer
 end
 
+"""
+Convert array to the desinated backend and precision.
+"""
+function to_backend(backend::B, precision::T, arr::A) where {B<:Backend, T<:DataType, A<:Array{<:Any}}
+    if backend == CPU()
+        return Array{precision}(arr)
+    else
+        gpuarr = allocate(backend, precision, size(arr))
+        copyto!(gpuarr, arr)
+        return gpuarr
+    end
+end
+
 function Ptycho_fft2(x)
     xif = ifftshift(fft(fftshift(x))) ./ sqrt(length(x))
     return (xif)
@@ -66,6 +79,9 @@ struct Reconstruction
     Iteration::Integer
 end
 
+"""
+Save the reconstruction data to a file with the given extension.
+"""
 function save_recon(filepath::String, recon::Reconstruction, ext::String)
     if ext == "mat"
         file = matopen(filepath, "w")
