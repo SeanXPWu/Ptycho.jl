@@ -81,23 +81,23 @@ end
 function init_trans(params::Parameters, dps::DiffractionPatterns)
     count = 0
     x, y = size(dps)[3:4]
-    trans_related_x = ones(1, length(x * y))
-    trans_related_y = ones(1, length(x * y))
-    for ii = 1:x
-        for jj = 1:y
+    trans_related = Array{float64, 2}(undef,x * y, 2)
+    for i = 1:x
+        for j = 1:y
             count = count + 1
-            trans_related_x(count) =
-                ii * params.ScanTrajectory.ScanStep / params.dx *
+            trans_related[count, 1] =
+                i * params.ScanTrajectory.ScanStep / params.dx *
                 cos(params.ScanTrajectory.Angle * pi / 180) -
-                jj * params.ScanTrajectory.ScanStep / params.dx *
+                j * params.ScanTrajectory.ScanStep / params.dx *
                 sin(params.ScanTrajectory.Angle * pi / 180)
-            trans_related_y(count) =
-                ii * params.ScanTrajectory.ScanStep / pparams.dx *
+            trans_related[count, 2] =
+                i * params.ScanTrajectory.ScanStep / pparams.dx *
                 sin(params.ScanTrajectory.Angle * pi / 180) +
-                jj * params.ScanTrajectory.ScanStep / params.dx *
+                j  * params.ScanTrajectory.ScanStep / params.dx *
                 cos(params.ScanTrajectory.Angle * pi / 180)
         end
     end
+    return trans_related
 end
 
 #[p.dpList, trans_related ] = generate_dpList( p.trans.dp_num, trans_related, p.dp.load_mode, p.dp.load_para);
