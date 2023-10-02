@@ -1,22 +1,8 @@
 export Probe, Object, UpdateParameters, Reconstruction
 export init_probe, save_recon, init_trans, generate_dpList, prestart, iterate
 
-struct Probe{T<:Number}
-    ProbeMatrix::Array{T,2}
-    RecordStep::Integer
-end
-
-"""
-Convert array to the desinated backend and precision.
-"""
-function to_backend(backend::B, precision::T, arr::A) where {B<:Backend, T<:DataType, A<:Array{<:Any}}
-    if backend == CPU()
-        return Array{precision}(arr)
-    else
-        gpuarr = allocate(backend, precision, size(arr))
-        copyto!(gpuarr, arr)
-        return gpuarr
-    end
+struct Probe{T<:Complex}
+    ProbeMatrix::AbstractArray{T,2}
 end
 
 function Ptycho_fft2(x)
@@ -59,7 +45,7 @@ function init_probe(params::Parameters, dps::DiffractionPatterns)
     probe =
         probe ./ sqrt.(sum(sum(abs.(probe .* conj.(probe))))) *
         sqrt.(sum(sum(abs.(dps.DPs[:, :, 1, 1] .* conj.(dps.DPs[:, :, 1, 1])))))
-    return Probe(probe, 1)
+    return Probe(probe)
 end
 
 function init_probe(ds::DataSet)
@@ -67,8 +53,7 @@ function init_probe(ds::DataSet)
 end
 
 struct Object{T<:Complex}
-    ObjectMatrix::Array{T,2}
-    RecordStep::Integer
+    ObjectMatrix::AbstractArray{T,2}
 end
 
 struct Reconstruction
@@ -123,7 +108,7 @@ function generate_dpList(params::Parameters, dps::DiffractionPatterns)
 end
 
 function init_obj(recon_size)
-    return Object(ones(ComplexF32, ceil(Integer,recon_size[1]), ceil(Integer,recon_size[2])), 1)
+    return Object(ones(ComplexF32, ceil(Integer,recon_size[1]), ceil(Integer,recon_size[2])))
 end
 
 function prestart(params::Parameters,dps::DiffractionPatterns, objup::T, probeup::T) where T<:AbstractFloat
@@ -165,5 +150,5 @@ function iterate(recon::Reconstruction,trans_exec,dps::DiffractionPatterns,dpLis
                 current_rmse=current_rmse+rmse(abs.(ewf),Float64.(dp_current))
         end
         current_rmse=current_rmse/length(dps.DPs[1,1,:,:])
-        return Reconstruction(Object(obj,1),Probe(probe,1),recon.ObjUpdate, recon.ProbeUpdate,recon.Iteration+1), current_rmse
+        return Reconstruction(Object(obj),Probe(probe),recon.ObjUpdate, recon.ProbeUpdate,recon.Iteration+1), current_rmse
 end

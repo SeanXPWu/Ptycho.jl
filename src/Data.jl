@@ -20,7 +20,7 @@ struct Parameters
     Adjustment::Integer
 end
 
-function Parameters(Voltage, Semiangle, dx, ScanStep, Angle, Defocus)
+function Parameters(Voltage::Real, Semiangle::Real, dx::Real, ScanStep::Real, Angle::Real, Defocus::Real)
     return Parameters(
         Voltage,
         Semiangle,
@@ -32,7 +32,7 @@ function Parameters(Voltage, Semiangle, dx, ScanStep, Angle, Defocus)
 end
 
 struct DiffractionPatterns{T<:Real}
-    DPs::Array{T}
+    DPs::AbstractArray{T}
 end
 
 function size(dps::DiffractionPatterns)
