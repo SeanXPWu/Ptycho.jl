@@ -1,5 +1,5 @@
 export Probe, Object, UpdateParameters, Reconstruction
-export init_probe, save_recon, init_trans
+export init_probe, save_recon, init_trans, generate_dpList
 
 struct Probe{T<:Number}
     ProbeMatrix::Array{T,2}
@@ -11,7 +11,7 @@ function Ptycho_fft2(x)
     return (xif)
 end
 
-function init_probe(params::Parameters, dps::DiffractionPatterns, step::Integer = 1)
+function init_probe(params::Parameters, dps::DiffractionPatterns)
     x, y = size(dps)[1:2]
     lamda = 1.23984244 / sqrt(params.Voltage * (2 * 510.99906 + params.Voltage)) * 1e-9
     temp1 = (-1/2*x):(1/2*x-1)
@@ -42,14 +42,14 @@ function init_probe(params::Parameters, dps::DiffractionPatterns, step::Integer 
         probe ./ sqrt.(sum(sum(abs.(probe .* conj.(probe))))) *
         sqrt.(sum(sum(abs.(dps.DPs[:, :, 1, 1] .* conj.(dps.DPs[:, :, 1, 1])))))
     imshow(abs.(probe))
-    return Probe(probe, step)
+    return Probe(probe, 1)
 end
 
 function init_probe(ds::DataSet)
     return init_probe(ds.Params, ds.DPs)
 end
 
-struct Object{T<:Real}
+struct Object{T<:Complex}
     ObjectMatrix::Array{T,3}
     RecordStep::Integer
 end
@@ -100,10 +100,25 @@ function init_trans(params::Parameters, dps::DiffractionPatterns)
     return trans_related
 end
 
-#[p.dpList, trans_related ] = generate_dpList( p.trans.dp_num, trans_related, p.dp.load_mode, p.dp.load_para);
-#p.dp.num = length(p.dpList);
-#trans_exec.x= trans_related.x-floor(min(trans_related.x))+ceil(p.recon.dxy_adjustment(1));
-#trans_exec.y= trans_related.y-floor(min(trans_related.y))+ceil(p.recon.dxy_adjustment(2));
-#length_x=max(trans_exec.x)-min(trans_exec.x);
-#length_y=max(trans_exec.y)-min(trans_exec.y);
-#p.recon.recon_size=[ceil(length_x),ceil(length_y)]+p.dp.size+ceil(p.recon.dxy_adjustment)*2;
+function generate_dpList(params::Parameters, dps::DiffractionPatterns)
+    dpList = collect(1:length(dps.DPs[1,1,:,:]))
+    return dpList
+end
+
+function init_obj(recon_size)
+    return Object(ones(ComplexF32, recon_size), 1)
+end
+
+function prestart(params::Parameters,dps::DiffractionPatterns)
+    trans_related = init_trans(params,dps)
+    dpList = generate_dpList(params,dps)
+    trans_exec = similar(trans_related)
+    trans_exec[:,1]= trans_related[:,1].-floor(minimum(trans_related[:,1]))+params.Adjustment;
+    trans_exec[:,2]= trans_related[:,2].-floor(minimum(trans_related[:,2]))+params.Adjustment;
+    length_x=maximum(trans_exec[:,1])-minimum(trans_exec[:,1]);
+    length_y=maximum(trans_exec[:,2])-minimum(trans_exec[:,2]);
+    recon_size=[ceil(length_x),ceil(length_y)].+size(dps)[1:2].+params.Adjustment*2;
+    obj = init_obj(recon_size)
+    probe = init_probe(params, dps)
+    return obj, probe, trans_exec, dpList
+end
