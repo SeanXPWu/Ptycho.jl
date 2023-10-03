@@ -1,5 +1,5 @@
-export Probe, Object, UpdateParameters, Reconstruction
-export init_probe, save_recon, init_trans, generate_dpList, prestart, iterate
+export Probe, Object, Reconstruction
+export init_probe, init_trans, generate_dpList, prestart, iterate
 
 struct Probe{T<:Complex}
     ProbeMatrix::AbstractArray{T,2}
@@ -59,25 +59,7 @@ end
 struct Reconstruction
     Object::Object
     Probe::Probe
-    ObjUpdate::AbstractFloat
-    ProbeUpdate::AbstractFloat
     Iteration::Integer
-end
-
-"""
-Save the reconstruction data to a file with the given extension.
-"""
-function save_recon(filepath::String, recon::Reconstruction, ext::String)
-    if ext == "mat"
-        file = matopen(filepath, "w")
-    elseif ext == "jld2"
-        file = jldopen(filepath, "w")
-    end
-    write(file, "Probe", recon.Probe)
-    write(file, "Object", recon.Object)
-    write(file, "Iteration", recon.Iteration)
-    write(file, "UpdateParameters", recon.UpdateParameters)
-    close(file)
 end
 
 function init_trans(params::Parameters, dps::DiffractionPatterns)
@@ -98,8 +80,8 @@ function init_trans(params::Parameters, dps::DiffractionPatterns)
     return trans_related
 end
 
-function generate_dpList(params::Parameters, dps::DiffractionPatterns)
-    dpList = collect(1:length(dps.DPs[1,1,:,:]))
+function generate_dpList(dps::DiffractionPatterns)
+    dpList = collect(1:length(dps))
     return dpList
 end
 
@@ -109,14 +91,9 @@ function init_obj(recon_size)
     )
 end
 
-function prestart(
-    params::Parameters,
-    dps::DiffractionPatterns,
-    objup::T,
-    probeup::T,
-) where {T<:AbstractFloat}
+function prestart(params::Parameters, dps::DiffractionPatterns)
     trans_related = init_trans(params, dps)
-    dpList = generate_dpList(params, dps)
+    dpList = generate_dpList(dps)
     trans_exec = similar(trans_related)
     trans_exec[:, 1] =
         trans_related[:, 1] .- floor(minimum(trans_related[:, 1])) .+ params.Adjustment
@@ -127,7 +104,7 @@ function prestart(
     recon_size = [ceil(length_x), ceil(length_y)] .+ size(dps)[1:2] .+ params.Adjustment * 2
     obj = init_obj(recon_size)
     probe = init_probe(params, dps)
-    recon = Reconstruction(obj, probe, objup, probeup, 0)
+    recon = Reconstruction(obj, probe, 0)
     return recon, trans_exec, dpList
 end
 
@@ -135,16 +112,15 @@ function rmse(arr1::T, arr2::T) where {T<:AbstractArray}
     return sqrt(sum((arr1 .- arr2) .^ 2))
 end
 
-function iterate(recon::Reconstruction,trans_exec,dps::DiffractionPatterns,dpList)
+function iterate(recon::Reconstruction,trans_exec,dps::DiffractionPatterns)
         current_rmse=0
-        obj = copy(recon.Object.ObjectMatrix)
-        probe = copy(recon.Probe.ProbeMatrix)
-        for count_dp=1:length(dpList)
+        obj = recon.Object.ObjectMatrix
+        probe = recon.Probe.ProbeMatrix
+        for count_dp=1:length(dps)
                 sx = round(Int, trans_exec[count_dp,1]):round(Int,trans_exec[count_dp,1]+size(dps)[1]-1)
                 sy = round(Int,trans_exec[count_dp,2]):round(Int,trans_exec[count_dp,2]+size(dps)[2]-1)
                 y =(count_dp-1) ÷ size(dps)[3]+1
                 x = count_dp-(y-1)*size(dps)[3]
-                println(x,y)
                 #dp_current=Float32.(dps.DPs[:,:,count_dp])
                 dp_current=Float32.(dps.DPs[:,:,x,y])
                 ew = obj[sx,sy] .* probe
@@ -152,10 +128,10 @@ function iterate(recon::Reconstruction,trans_exec,dps::DiffractionPatterns,dpLis
                 ewfn = dp_current .* exp.(im.*angle.(ewf))
                 ew1 = Ptycho_ifft2(ewfn)
                 probe0 = probe
-                probe = probe .+ recon.ProbeUpdate.*(ew1.-ew) .* conj.(obj[sx,sy]) ./maximum(abs.(obj[sx,sy]).^2)
-                obj[sx,sy] = obj[sx,sy] .+ recon.ObjUpdate .*(ew1.-ew) .* conj.(probe0) ./maximum(abs.(probe0).^2)
+                probe = probe .+ params.ProbeUpdate.*(ew1.-ew) .* conj.(obj[sx,sy]) ./maximum(abs.(obj[sx,sy]).^2)
+                obj[sx,sy] = obj[sx,sy] .+ params.ObjUpdate .*(ew1.-ew) .* conj.(probe0) ./maximum(abs.(probe0).^2)
                 current_rmse=current_rmse+rmse(abs.(ewf),Float64.(dp_current))
         end
         current_rmse=current_rmse/length(dps.DPs[1,1,:,:])
-        return Reconstruction(Object(obj,1),Probe(probe,1),recon.ObjUpdate, recon.ProbeUpdate,recon.Iteration+1), current_rmse
+        return Reconstruction(Object(obj), Probe(probe), recon.Iteration+1), current_rmse
 end

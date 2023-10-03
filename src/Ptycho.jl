@@ -8,7 +8,7 @@ using JLD2, HDF5, MAT
 
 using ImageView
 
-import Base: read, size, iterate
+import Base: size, length, iterate
 
 """
 Convert array to the desinated backend and precision.
@@ -29,6 +29,7 @@ end
 
 include("Dataset.jl")
 include("Reconstruction.jl")
+include("IO.jl")
 include("PIE.jl")
 
 include("iteration.jl")
