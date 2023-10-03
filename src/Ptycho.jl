@@ -13,17 +13,21 @@ import Base: read, size, iterate
 """
 Convert array to the desinated backend and precision.
 """
-function to_backend(backend::B, precision::T, arr::A) where {B<:Backend, T<:DataType, A<:Array{<:Any}}
-    if backend == CPU()
-        return Array{precision}(arr)
+function to_backend(
+    backend::B,
+    precision::T,
+    arr::A,
+) where {B<:Backend,T<:DataType,A<:Array{<:Any}}
+    if backend == KernelAbstractions.get_backend(arr) && precision == eltype(arr)
+        return arr
     else
-        gpuarr = allocate(backend, precision, size(arr))
-        copyto!(gpuarr, arr)
-        return gpuarr
+        newarr = allocate(backend, precision, size(arr))
+        copyto!(newarr, arr)
+        return newarr
     end
 end
 
-include("Data.jl")
+include("Dataset.jl")
 include("Reconstruction.jl")
 include("PIE.jl")
 

@@ -20,14 +20,21 @@ struct Parameters
     Adjustment::Integer
 end
 
-function Parameters(Voltage::Real, Semiangle::Real, dx::Real, ScanStep::Real, Angle::Real, Defocus::Real)
+function Parameters(
+    Voltage::Real,
+    Semiangle::Real,
+    dx::Real,
+    ScanStep::Real,
+    Angle::Real,
+    Defocus::Real,
+)
     return Parameters(
         Voltage,
         Semiangle,
         dx,
         ScanTrajectory(ScanStep, Angle),
         AberrationParameters(Defocus),
-        50
+        50,
     )
 end
 
@@ -44,7 +51,7 @@ struct DataSet
     DPs::DiffractionPatterns
 end
 
-function load_dp(filename::String, varname::String)
+function load_dp(filename::String, varname::String = "dp")
     ext = split(filename, ".")[end]
     if ext == "mat"
         file = matopen(filename)
@@ -66,7 +73,7 @@ function load_dps(
     scansize::T,
     varname::String = "dp",
 ) where {T<:Tuple{Integer,Integer}}
-    files = readdir(dirpath, join=true, sort=false)
+    files = readdir(dirpath, join = true, sort = false)
     if length(files) != prod(scansize)
         error("Number of files in $dirpath does not match scan dimensions.")
     end
@@ -75,8 +82,8 @@ function load_dps(
     dps = Array{UInt8,4}(undef, x, y, scansize[1], scansize[2])
     for (i, filename) in enumerate(files)
         tmp = load_dp(filename, varname)
-        y = (i-1) ÷ scansize[1] + 1
-        x = i - (y-1)*scansize[1]
+        y = (i - 1) ÷ scansize[1] + 1
+        x = i - (y - 1) * scansize[1]
         dps[:, :, x, y] = tmp
     end
     return DiffractionPatterns(dps)
@@ -87,15 +94,15 @@ function load_dps_3d(
     scansize::T,
     varname::String = "dp",
 ) where {T<:Tuple{Integer,Integer}}
-    files = readdir(dirpath, join=true, sort=false)
+    files = readdir(dirpath, join = true, sort = false)
     if length(files) != prod(scansize)
         error("Number of files in $dirpath does not match scan dimensions.")
     end
     tmp = load_dp(files[1], varname)
     x, y = Base.size(tmp)
-    dps = Array{UInt8,3}(undef, x, y, scansize[1]*scansize[2])
-    for i =1:length(files)
-        filename="$dirpath/dp_$i.mat"
+    dps = Array{UInt8,3}(undef, x, y, scansize[1] * scansize[2])
+    for i = 1:length(files)
+        filename = "$dirpath/dp_$i.mat"
         tmp = load_dp(filename, varname)
         dps[:, :, i] = tmp
     end
@@ -103,7 +110,15 @@ function load_dps_3d(
 end
 
 
-function save_dataset(filepath::String, data::DataSet, ext::String = "mat")
+function save_dataset(
+    filepath::String,
+    data::DataSet,
+    ext::String = "jld2",
+    mode::String = "Ptycho",
+)
+    if mode == "Ptycho" && ext != "jld2"
+        error("Ptycho struct mode only supports JLD2 format.")
+    end
     if ext == "mat"
         file = matopen(filepath, "w")
     elseif ext == "jld2"
