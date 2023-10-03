@@ -48,10 +48,6 @@ function init_probe(params::Parameters, dps::DiffractionPatterns)
     return Probe(probe)
 end
 
-function init_probe(ds::DataSet)
-    return init_probe(ds.Params, ds.DPs)
-end
-
 struct Object{T<:Complex}
     ObjectMatrix::AbstractArray{T,2}
 end

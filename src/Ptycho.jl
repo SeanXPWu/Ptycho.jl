@@ -32,6 +32,6 @@ include("Reconstruction.jl")
 include("IO.jl")
 include("PIE.jl")
 
-include("iteration.jl")
+include("Iteration.jl")
 
 end

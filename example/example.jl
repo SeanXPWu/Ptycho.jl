@@ -6,7 +6,7 @@ function main()
 params = Parameters(300, 1.03, 4.65, 31.25, -126, -13500)
 dps =load_dps("./test_data/",(127,127))
 
-    recon, trans_exec, dpList = prestart(params, dps, 0.01, 0.01)
+    recon, trans_exec, _ = prestart(params, dps, 0.01, 0.01)
 
 iter_step = 1
 rmse_list = Vector{Float64}(undef, iter_step)

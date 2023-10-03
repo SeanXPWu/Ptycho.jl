@@ -62,7 +62,7 @@ end
 
 function save_dataset(
     filepath::String,
-    data::DataSet,
+    data,
     ext::String = "jld2",
     mode::String = "Ptycho",
 )
