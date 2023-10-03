@@ -1,5 +1,5 @@
 using Revise
-using Ptycho
+using Ptycho, CUDA
 using ImageView
 
 function main()
@@ -9,15 +9,18 @@ function main()
 
     println("Diffraction patterns loaded \nInitialsing...")
 
-    recon, trans_exec, dpList = prestart(params, dps)    
+    recon, trans_exec = initialise_recon(params, dps)    
 
     println("Initialisation finished \nStart iteration...")
 
     iter_step = 1
+    backend = CUDABackend()
+    precision = Float32
+
     rmse_list = Vector{Float64}(undef, iter_step)
     for i = 1:iter_step
         println("Current iteration : ", i)
-        elapsed_time = @elapsed recon,rmse = iterate(recon, trans_exec, params, dps, dpList)
+        elapsed_time = @elapsed recon,rmse = ePIE_iteration(recon, params, dps, trans_exec, backend, precision)
         rmse_list[i] = rmse
         println("Iteration $i finished in $elapsed_time seconds, current RMSE : $rmse")
     end
@@ -27,6 +30,6 @@ function main()
     return params, recon, rmse_list, dps, trans_exec
 end
 
-params,recon, rmse_list,dps, trans_exec=main()
+params, recon, rmse_list, dps, trans_exec =main()
 obj = recon.Object.ObjectMatrix
 imshow(abs.(obj))
