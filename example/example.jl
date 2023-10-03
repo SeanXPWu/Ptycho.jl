@@ -9,7 +9,7 @@ function main()
 
     println("Diffraction patterns loaded \nInitialsing...")
 
-    recon, trans_exec, _ = prestart(params, dps)    
+    recon, trans_exec, dpList = prestart(params, dps)    
 
     println("Initialisation finished \nStart iteration...")
 
@@ -17,7 +17,7 @@ function main()
     rmse_list = Vector{Float64}(undef, iter_step)
     for i = 1:iter_step
         println("Current iteration : ", i)
-        @time recon,rmse = iterate(recon, trans_exec, params, dps)
+        @time recon,rmse = iterate(recon, trans_exec, params, dps, dpList)
         rmse_list[i] = rmse
         println("Iteration $i finished, current RMSE : ", rmse)
     end
