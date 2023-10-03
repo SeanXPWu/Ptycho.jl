@@ -3,18 +3,28 @@ using Ptycho
 using ImageView
 
 function main()
-params = Parameters(300, 1.03, 4.65, 31.25, -126, -13500)
-dps =load_dps("./test_data/",(127,127))
+    params = Parameters(Voltage=300, Semiangle=1.03, dx=4.65, ScanStep=31.25, ScanAngle=-126, Defocus=-13500)
 
-    recon, trans_exec, _ = prestart(params, dps, 0.01, 0.01)
+    dps =load_dps("./test_data/",(127,127))
 
-iter_step = 1
-rmse_list = Vector{Float64}(undef, iter_step)
-for i = 1:iter_step
-    @time recon,rmse = iterate(recon,trans_exec,dps)
-    rmse_list[i] = rmse
-end
-return params, recon, rmse_list, dps, trans_exec
+    println("Diffraction patterns loaded \nInitialsing...")
+
+    recon, trans_exec, _ = prestart(params, dps)    
+
+    println("Initialisation finished \nStart iteration...")
+
+    iter_step = 1
+    rmse_list = Vector{Float64}(undef, iter_step)
+    for i = 1:iter_step
+        println("Current iteration : ", i)
+        @time recon,rmse = iterate(recon, trans_exec, params, dps)
+        rmse_list[i] = rmse
+        println("Iteration $i finished, current RMSE : ", rmse)
+    end
+
+    println("Reconstruction finished")
+
+    return params, recon, rmse_list, dps, trans_exec
 end
 
 params,recon, rmse_list,dps, trans_exec=main()

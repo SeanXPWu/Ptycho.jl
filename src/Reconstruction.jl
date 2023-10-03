@@ -92,12 +92,12 @@ function prestart(params::Parameters, dps::DiffractionPatterns)
     dpList = generate_dpList(dps)
     trans_exec = similar(trans_related)
     trans_exec[:, 1] =
-        trans_related[:, 1] .- floor(minimum(trans_related[:, 1])) .+ params.Adjustment
+        trans_related[:, 1] .- floor(minimum(trans_related[:, 1])) .+ params.ObjPadding
     trans_exec[:, 2] =
-        trans_related[:, 2] .- floor(minimum(trans_related[:, 2])) .+ params.Adjustment
+        trans_related[:, 2] .- floor(minimum(trans_related[:, 2])) .+ params.ObjPadding
     length_x = maximum(trans_exec[:, 1]) - minimum(trans_exec[:, 1])
     length_y = maximum(trans_exec[:, 2]) - minimum(trans_exec[:, 2])
-    recon_size = [ceil(length_x), ceil(length_y)] .+ size(dps)[1:2] .+ params.Adjustment * 2
+    recon_size = [ceil(length_x), ceil(length_y)] .+ size(dps)[1:2] .+ params.ObjPadding * 2
     obj = init_obj(recon_size)
     probe = init_probe(params, dps)
     recon = Reconstruction(obj, probe, 0)
@@ -108,7 +108,7 @@ function rmse(arr1::T, arr2::T) where {T<:AbstractArray}
     return sqrt(sum((arr1 .- arr2) .^ 2))
 end
 
-function iterate(recon::Reconstruction,trans_exec,dps::DiffractionPatterns)
+function iterate(recon::Reconstruction,trans_exec,params::Parameters, dps::DiffractionPatterns)
         current_rmse=0
         obj = recon.Object.ObjectMatrix
         probe = recon.Probe.ProbeMatrix
