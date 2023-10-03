@@ -1,22 +1,8 @@
 export Probe, Object, UpdateParameters, Reconstruction
 export init_probe, save_recon, init_trans, generate_dpList, prestart, iterate
 
-struct Probe{T<:Number}
-    ProbeMatrix::Array{T,2}
-    RecordStep::Integer
-end
-
-"""
-Convert array to the desinated backend and precision.
-"""
-function to_backend(backend::B, precision::T, arr::A) where {B<:Backend, T<:DataType, A<:Array{<:Any}}
-    if backend == CPU()
-        return Array{precision}(arr)
-    else
-        gpuarr = allocate(backend, precision, size(arr))
-        copyto!(gpuarr, arr)
-        return gpuarr
-    end
+struct Probe{T<:Complex}
+    ProbeMatrix::AbstractArray{T,2}
 end
 
 function Ptycho_fft2(x)
@@ -59,7 +45,7 @@ function init_probe(params::Parameters, dps::DiffractionPatterns)
     probe =
         probe ./ sqrt.(sum(sum(abs.(probe .* conj.(probe))))) *
         sqrt.(sum(sum(abs.(dps.DPs[:, :, 1, 1] .* conj.(dps.DPs[:, :, 1, 1])))))
-    return Probe(probe, 1)
+    return Probe(probe)
 end
 
 function init_probe(ds::DataSet)
@@ -67,8 +53,7 @@ function init_probe(ds::DataSet)
 end
 
 struct Object{T<:Complex}
-    ObjectMatrix::Array{T,2}
-    RecordStep::Integer
+    ObjectMatrix::AbstractArray{T,2}
 end
 
 struct Reconstruction
@@ -103,15 +88,11 @@ function init_trans(params::Parameters, dps::DiffractionPatterns)
         for j = 1:y
             count = count + 1
             trans_related[count, 1] =
-                i * params.Scan.ScanStep / params.dx *
-                cos(params.Scan.Angle * pi / 180) -
-                j * params.Scan.ScanStep / params.dx *
-                sin(params.Scan.Angle * pi / 180)
+                i * params.Scan.ScanStep / params.dx * cos(params.Scan.Angle * pi / 180) -
+                j * params.Scan.ScanStep / params.dx * sin(params.Scan.Angle * pi / 180)
             trans_related[count, 2] =
-                i * params.Scan.ScanStep / params.dx *
-                sin(params.Scan.Angle * pi / 180) +
-                j  * params.Scan.ScanStep / params.dx *
-                cos(params.Scan.Angle * pi / 180)
+                i * params.Scan.ScanStep / params.dx * sin(params.Scan.Angle * pi / 180) +
+                j * params.Scan.ScanStep / params.dx * cos(params.Scan.Angle * pi / 180)
         end
     end
     return trans_related
@@ -123,26 +104,35 @@ function generate_dpList(params::Parameters, dps::DiffractionPatterns)
 end
 
 function init_obj(recon_size)
-    return Object(ones(ComplexF32, ceil(Integer,recon_size[1]), ceil(Integer,recon_size[2])), 1)
+    return Object(
+        ones(ComplexF32, ceil(Integer, recon_size[1]), ceil(Integer, recon_size[2])),
+    )
 end
 
-function prestart(params::Parameters,dps::DiffractionPatterns, objup::T, probeup::T) where T<:AbstractFloat
-    trans_related = init_trans(params,dps)
-    dpList = generate_dpList(params,dps)
+function prestart(
+    params::Parameters,
+    dps::DiffractionPatterns,
+    objup::T,
+    probeup::T,
+) where {T<:AbstractFloat}
+    trans_related = init_trans(params, dps)
+    dpList = generate_dpList(params, dps)
     trans_exec = similar(trans_related)
-    trans_exec[:,1]= trans_related[:,1].-floor(minimum(trans_related[:,1])).+params.Adjustment
-    trans_exec[:,2]= trans_related[:,2].-floor(minimum(trans_related[:,2])).+params.Adjustment
-    length_x=maximum(trans_exec[:,1])-minimum(trans_exec[:,1])
-    length_y=maximum(trans_exec[:,2])-minimum(trans_exec[:,2])
-    recon_size=[ceil(length_x),ceil(length_y)].+size(dps)[1:2].+params.Adjustment*2
+    trans_exec[:, 1] =
+        trans_related[:, 1] .- floor(minimum(trans_related[:, 1])) .+ params.Adjustment
+    trans_exec[:, 2] =
+        trans_related[:, 2] .- floor(minimum(trans_related[:, 2])) .+ params.Adjustment
+    length_x = maximum(trans_exec[:, 1]) - minimum(trans_exec[:, 1])
+    length_y = maximum(trans_exec[:, 2]) - minimum(trans_exec[:, 2])
+    recon_size = [ceil(length_x), ceil(length_y)] .+ size(dps)[1:2] .+ params.Adjustment * 2
     obj = init_obj(recon_size)
     probe = init_probe(params, dps)
-    recon = Reconstruction(obj,probe, objup, probeup, 0)
+    recon = Reconstruction(obj, probe, objup, probeup, 0)
     return recon, trans_exec, dpList
 end
 
-function rmse(arr1::T,arr2::T) where T<:AbstractArray
-    return sqrt(sum((arr1.-arr2).^2))
+function rmse(arr1::T, arr2::T) where {T<:AbstractArray}
+    return sqrt(sum((arr1 .- arr2) .^ 2))
 end
 
 function iterate(recon::Reconstruction,trans_exec,dps::DiffractionPatterns,dpList)
