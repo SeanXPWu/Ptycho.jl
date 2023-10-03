@@ -97,7 +97,7 @@ end
 
 function init_trans(params::Parameters, dps::DiffractionPatterns)
     count = 0
-    x, y = (128, 128)
+    x, y = size(dps)[3:4]
     trans_related = Array{Float64, 2}(undef,x * y, 2)
     for i = 1:x
         for j = 1:y
@@ -118,7 +118,7 @@ function init_trans(params::Parameters, dps::DiffractionPatterns)
 end
 
 function generate_dpList(params::Parameters, dps::DiffractionPatterns)
-    dpList = collect(1:length(dps.DPs[1,1,:]))
+    dpList = collect(1:length(dps.DPs[1,1,:,:]))
     return dpList
 end
 
@@ -152,9 +152,11 @@ function iterate(recon::Reconstruction,trans_exec,dps::DiffractionPatterns,dpLis
         for count_dp=1:length(dpList)
                 sx = round(Int, trans_exec[count_dp,1]):round(Int,trans_exec[count_dp,1]+size(dps)[1]-1)
                 sy = round(Int,trans_exec[count_dp,2]):round(Int,trans_exec[count_dp,2]+size(dps)[2]-1)
-                #x =(count_dp-1) ÷ size(dps)[3]+1
-                #y = count_dp-(x-1)*size(dps)[3]
-                dp_current=Float32.(dps.DPs[:,:,count_dp])
+                y =(count_dp-1) ÷ size(dps)[3]+1
+                x = count_dp-(y-1)*size(dps)[3]
+                println(x,y)
+                #dp_current=Float32.(dps.DPs[:,:,count_dp])
+                dp_current=Float32.(dps.DPs[:,:,x,y])
                 ew = obj[sx,sy] .* probe
                 ewf = Ptycho_fft2(ew)
                 ewfn = dp_current .* exp.(im.*angle.(ewf))

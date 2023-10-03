@@ -73,10 +73,12 @@ function load_dps(
     tmp = load_dp(files[1], varname)
     x, y = Base.size(tmp)
     dps = Array{UInt8,4}(undef, x, y, scansize[1], scansize[2])
-    for (i, filename) in enumerate(files)
+    for i =1:length(files)
+        filename="$dirpath/dp_$i.mat"
         tmp = load_dp(filename, varname)
         y = (i-1) ÷ scansize[1] + 1
         x = i - (y-1)*scansize[1]
+        #println(x,y)
         dps[:, :, x, y] = tmp
     end
     return DiffractionPatterns(dps)
