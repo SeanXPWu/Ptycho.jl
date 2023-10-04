@@ -76,7 +76,7 @@ function init_trans(params::Parameters, dps::DiffractionPatterns)
     return trans_related
 end
 
-function generate_dpList(dps::DiffractionPatterns,trans_related,mode,OtherPara)
+function generate_dpList(dps::DiffractionPatterns,trans_related,random_order,mode,OtherPara)
     if mode=="all"
     dpList = collect(1:length(dps))
     elseif mode=="frc"
@@ -140,7 +140,13 @@ function generate_dpList(dps::DiffractionPatterns,trans_related,mode,OtherPara)
         trans_new[:,1]=trans_related[dpList,1]
         trans_new[:,2]=trans_related[dpList,2]
     end
-    return dpList, trans_new
+    
+    if random_order==1
+        List_index=1:length(dpList)
+        List_index=shuffle(List_index)
+    else List_index=1:length(dpList)
+    end
+    return dpList, trans_new, List_index
 end
 
 function init_obj(recon_size)
@@ -151,7 +157,7 @@ end
 
 function prestart(params::Parameters, dps::DiffractionPatterns)
     trans_related = init_trans(params, dps)
-    dpList, trans_related = generate_dpList(dps,trans_related,"double-skip",1)
+    dpList, trans_related, List_index= generate_dpList(dps,trans_related,1,"double-skip",2)
     trans_exec = similar(trans_related)
     trans_exec[:, 1] =
         trans_related[:, 1] .- floor(minimum(trans_related[:, 1])) .+ params.ObjPadding
@@ -163,22 +169,22 @@ function prestart(params::Parameters, dps::DiffractionPatterns)
     obj = init_obj(recon_size)
     probe = init_probe(params, dps)
     recon = Reconstruction(obj, probe, 0)
-    return recon, trans_exec, dpList
+    return recon, trans_exec, dpList, List_index
 end
 
 function rmse(arr1::T1, arr2::T2) where {T1<:AbstractArray, T2<:AbstractArray}
     return sqrt(sum((arr1 .- arr2) .^ 2))
 end
 
-function iterate(recon::Reconstruction,trans_exec,params::Parameters, dps::DiffractionPatterns, dpList)
+function iterate(recon::Reconstruction,trans_exec,params::Parameters, dps::DiffractionPatterns, dpList, List_index)
         current_rmse=0
         obj = recon.Object.ObjectMatrix
         probe = recon.Probe.ProbeMatrix
-        for count_dp=1:length(dpList)
-                sx = round(Int, trans_exec[count_dp,1]):round(Int,trans_exec[count_dp,1]+size(dps)[1]-1)
-                sy = round(Int,trans_exec[count_dp,2]):round(Int,trans_exec[count_dp,2]+size(dps)[2]-1)
-                y =(dpList[count_dp]-1) ÷ size(dps)[3]+1
-                x = dpList[count_dp]-(y-1)*size(dps)[3]
+        for count_dp=1:length(List_index)
+                sx = round(Int, trans_exec[List_index[count_dp],1]):round(Int,trans_exec[List_index[count_dp],1]+size(dps)[1]-1)
+                sy = round(Int,trans_exec[List_index[count_dp],2]):round(Int,trans_exec[List_index[count_dp],2]+size(dps)[2]-1)
+                y =(dpList[List_index[count_dp]]-1) ÷ size(dps)[3]+1
+                x = dpList[List_index[count_dp]]-(y-1)*size(dps)[3]
                 dp_current=Float32.(dps.DPs[:,:,x,y])
                 ew = obj[sx,sy] .* probe
                 ewf = Ptycho_fft2(ew)
