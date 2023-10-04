@@ -104,7 +104,7 @@ function prestart(params::Parameters, dps::DiffractionPatterns)
     return recon, trans_exec, dpList
 end
 
-function rmse(arr1::T, arr2::T) where {T<:AbstractArray}
+function rmse(arr1::T1, arr2::T2) where {T1<:AbstractArray, T2<:AbstractArray}
     return sqrt(sum((arr1 .- arr2) .^ 2))
 end
 

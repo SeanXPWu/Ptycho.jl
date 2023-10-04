@@ -28,34 +28,79 @@ function initialise_recon(params::Parameters,dps::DiffractionPatterns)
     return Reconstruction(obj, probe, 0), round.(Int, trans_exec)
 end
 
-@kernel function ePIE_iteration_kernel!()
+"""
+Given a 4d data array of the dimension (x, y, z, w), where x and y are the dimensions of the diffraction patterns, z and w are the dimensions of the scan trajectory. Corresponding index notations are (i, j, k, l).
+"""
+#@kernel function ePIE_iteration_kernel!(dps, probe, object, trans, probeup, objup)
+#    k,l = @index(Global, Ntuple)
+#    for j in axes(dps, 2)
+#        for i in axes(dps, 1)
+            # main logic
+#        end
+#    end
+#end
 
+@kernel function get_ew_kernel!(ew, obj, probe, sx, sy)
+    i, j = @index(Global, NTuple)
+    ew[i,j] = probe[i,j] * obj[sx+i-1,sy+j-1]
+end
+
+function get_ew!(ew, obj, probe, sx, sy, backend)
+    kernel! = get_ew_kernel!(backend)
+    kernel!(ew, obj, probe, sx, sy, ndrange = size(probe))
+end
+
+@kernel function probe_update_kernel!(obj, probe, ew, uew, sx, sy, pup, obj_max)
+    i, j = @index(Global, NTuple)
+    probe[i,j] +=pup * (uew[i,j] - ew[i,j]) * conj(obj[i+sx-1,j+sy-1]) / obj_max
+end
+
+function probe_update!(obj, probe, ew, uew, sx, sy, pup, obj_max, backend)
+    kernel! = probe_update_kernel!(backend)
+    kernel!(obj, probe, ew, uew, sx, sy, pup, obj_max, ndrange=size(probe))
+end
+
+@kernel function object_update_kernel!(obj, probe, ew, uew, sx, sy, oup, probe_max)
+    i, j = @index(Global, NTuple)
+    obj[i+sx-1,j+sy-1] +=oup * (uew[i,j] - ew[i,j]) * conj(probe[i,j]) / probe_max
+end
+
+function object_update!(obj, probe, ew, uew, sx, sy, oup, probe_max, backend)
+    kernel! = object_update_kernel!(backend)
+    kernel!(obj, probe, ew, uew, sx, sy, oup, probe_max, ndrange=size(probe))
 end
 
 function ePIE_iteration(recon::Reconstruction, params::Parameters, dps::DiffractionPatterns, trans_exec::AbstractArray, backend::B=CPU(), precision::DataType = Float32) where {B<:Backend}
-    obj = recon.Object.ObjectMatrix
-    probe = to_backend(backend, Complex{precision}, recon.Probe.ProbeMatrix)
+    complexprecision = Complex{precision}
+    obj = to_backend(backend, complexprecision, recon.Object.ObjectMatrix)
+    probe = to_backend(backend, complexprecision, recon.Probe.ProbeMatrix)
     dps = dps.DPs
+    
+    ew = similar(probe)
+    fp = plan_fft(ew)
+    ifp = plan_ifft(ew)
+
     current_rmse = 0.0
     dims = size(dps)
     x, y = dims[3:4]
     for j = 1:y
         for i = 1:x
             dp = to_backend(backend, precision, dps[:,:,i,j])
-            trans = @view trans_exec[j,i,:]
-            sx = trans[1]:(trans[1]+dims[1]-1)
-            sy = trans[2]:(trans[2]+dims[2]-1)
-            uobj = to_backend(backend, Complex{precision}, obj[sx,sy])
-            ew = uobj .* probe
-            ewf = Ptycho_fft2(ew)
+            sx, sy = @view trans_exec[j,i,:]
+            get_ew!(ew, obj, probe, sx, sy, backend)
+
+            ewf = ifftshift(fp*(fftshift(ew))) ./ sqrt(length(ew))
+
+            current_rmse+=rmse(abs.(ewf), dp)
             ewfn = dp .* exp.(im.*angle.(ewf))
-            uew = Ptycho_ifft2(ewfn)
-            probe .+= params.ProbeUpdate.*(uew.-ew) .* conj.(uobj) ./maximum(abs.(uobj).^2)
-            uobj .+= params.ObjUpdate .*(uew.-ew) .* conj.(probe) ./maximum(abs.(probe).^2)
-            obj[sx,sy] .= to_backend(CPU(), Complex{precision}, uobj)
-            current_rmse+=rmse(abs.(ewf),dp)
+
+            uew = ifftshift(ifp*(fftshift(ewfn))) .* sqrt(length(ewfn))
+
+            obj_max = maximum(abs.(obj).^2)
+            probe_update!(obj, probe, ew, uew, sx, sy, params.ProbeUpdate, obj_max, backend)
+            probe_max = maximum(abs.(probe).^2)    
+            object_update!(obj, probe, ew, uew, sx, sy, params.ObjUpdate, probe_max, backend)
         end
     end
-    current_rmse /= x*y
-    return Reconstruction(Object(obj), Probe(probe), recon.Iteration+1), current_rmse
+    return Reconstruction(Object(obj), Probe(probe), recon.Iteration+1), current_rmse/(x*y)
 end

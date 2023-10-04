@@ -17,7 +17,7 @@ function to_backend(
     backend::B,
     precision::T,
     arr::A,
-) where {B<:Backend,T<:DataType,A<:Array{<:Any}}
+) where {B<:Backend,T<:DataType,A<:AbstractArray}
     if backend == KernelAbstractions.get_backend(arr) && precision == eltype(arr)
         return arr
     else
