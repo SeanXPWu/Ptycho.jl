@@ -36,18 +36,6 @@ function initialise_recon(params::Parameters, dps::DiffractionPatterns)
     return Reconstruction(obj, probe, 0), round.(Int, trans_exec)
 end
 
-"""
-Given a 4d data array of the dimension (x, y, z, w), where x and y are the dimensions of the diffraction patterns, z and w are the dimensions of the scan trajectory. Corresponding index notations are (i, j, k, l).
-"""
-#@kernel function ePIE_iteration_kernel!(dps, probe, object, trans, probeup, objup)
-#    k,l = @index(Global, Ntuple)
-#    for j in axes(dps, 2)
-#        for i in axes(dps, 1)
-# main logic
-#        end
-#    end
-#end
-
 @kernel function abs_max_kernel!(abs_max, obj, probe)
     i, j = @index(Global, NTuple)
     tmp = abs(obj[i, j])^2
@@ -115,7 +103,7 @@ function ePIE_iterations(
                     dp = view(dps, :, :, i, j)
                     obj = view(object, sx:sx+a-1, sy:sy+b-1)
                     
-                    ew .= probe .* obj
+                    dot!(ew, obj, probe)
 
                     fftshift!(ewf, ew)
                     mul!(tmp, fp, ewf)
@@ -123,7 +111,7 @@ function ePIE_iterations(
                     ewf ./= sqlen
 
                     current_rmse += rmse(abs.(ewf), dp)
-                    uewf .= dp .* exp.(im .* angle.(ewf))
+                    dot!(uewf, dp, exp.(im .* angle.(ewf)))
 
                     fftshift!(uew, uewf)
                     mul!(tmp, ifp, uew)
