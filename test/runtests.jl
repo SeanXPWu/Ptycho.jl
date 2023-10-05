@@ -3,7 +3,14 @@ using Test
 
 @testset "Ptycho.jl" begin
     # Write your tests here.
-    @test Parameters(Voltage=300, Semiangle=1.03, dx=4.65, ScanStep=31.25, ScanAngle=-126, Defocus=-13500) == Parameters(
+    @test Parameters(
+        Voltage = 300,
+        Semiangle = 1.03,
+        dx = 4.65,
+        ScanStep = 31.25,
+        ScanAngle = -126,
+        Defocus = -13500,
+    ) == Parameters(
         300,
         1.03,
         4.65,

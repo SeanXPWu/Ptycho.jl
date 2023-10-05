@@ -61,7 +61,7 @@ end
 function init_trans(params::Parameters, dps::DiffractionPatterns)
     count = 0
     x, y = size(dps)[3:4]
-    trans_related = Array{Float64, 2}(undef,x * y, 2)
+    trans_related = Array{Float64,2}(undef, x * y, 2)
     for i = 1:x
         for j = 1:y
             count = count + 1
@@ -76,75 +76,88 @@ function init_trans(params::Parameters, dps::DiffractionPatterns)
     return trans_related
 end
 
-function generate_dpList(dps::DiffractionPatterns,trans_related,random_order,mode,OtherPara)
-    if mode=="all"
-    dpList = collect(1:length(dps))
-    elseif mode=="frc"
-        if mod(length(dps),2) == 0
-            dpList = zeros(length(dps)/2,1);
-            count = 1;
+function generate_dpList(
+    dps::DiffractionPatterns,
+    trans_related,
+    random_order,
+    mode,
+    OtherPara,
+)
+    if mode == "all"
+        dpList = collect(1:length(dps))
+    elseif mode == "frc"
+        if mod(length(dps), 2) == 0
+            dpList = zeros(length(dps) / 2, 1)
+            count = 1
             for ii = 1:size(dps)[3]
-                dpList[count:count-1+size(dps)[4]/2] = ((ii-1)*size(dps)[4].+1:2:ii*size(dps)[4]) .+ mod(ii+OtherPara[1],2)
-                count = count + size(dps)[4]/2
+                dpList[count:count-1+size(dps)[4]/2] =
+                    ((ii-1)*size(dps)[4].+1:2:ii*size(dps)[4]) .+ mod(ii + OtherPara[1], 2)
+                count = count + size(dps)[4] / 2
             end
         else
-            dpList = (1:2:(length(dps))) .+ mod(OtherPara[1]+1,2)
+            dpList = (1:2:(length(dps))) .+ mod(OtherPara[1] + 1, 2)
         end
-    elseif mode=="rows"
-        dpList = zeros(length(OtherPara)*size(dps)[4],1)
-        count = 1;
-        OtherPara=Int.(OtherPara)
-        for ii = OtherPara
+    elseif mode == "rows"
+        dpList = zeros(length(OtherPara) * size(dps)[4], 1)
+        count = 1
+        OtherPara = Int.(OtherPara)
+        for ii in OtherPara
             dpList[count:size(dps)[4]+count-1] = ((ii-1)*size(dps)[4]+1:1:ii*size(dps)[4])
             count = count + size(dps)[4]
         end
-    elseif mode=="columns"
-        dpList = zeros(size(dps)[3]*length(OtherPara),1)
+    elseif mode == "columns"
+        dpList = zeros(size(dps)[3] * length(OtherPara), 1)
         count = 1
-        OtherPara=Int.(OtherPara)
-        for ii = OtherPara
-            dpList[count:size(dps)[3]+count-1] = (ii:size(dps)[4]:ii+(size(dps)[3]-1)*size(dps)[4])'
+        OtherPara = Int.(OtherPara)
+        for ii in OtherPara
+            dpList[count:size(dps)[3]+count-1] =
+                (ii:size(dps)[4]:ii+(size(dps)[3]-1)*size(dps)[4])'
             count = count + size(dps)[3]
         end
-    elseif mode=="singledp"
+    elseif mode == "singledp"
         dpList = OtherPara
-    elseif mode=="subarray"
+    elseif mode == "subarray"
         BigMtx = 1:(length(dps))
-        BigMtx = reshape(BigMtx,size(dps)[4],size(dps)[3])'
-        SmlMtx = BigMtx[OtherPara[1]:OtherPara[2],OtherPara[3]:OtherPara[4]]
-        dpList = zeros((OtherPara[4]-OtherPara[3] + 1)*(OtherPara[2]-OtherPara[1]+1),1)
-        count = 0;
+        BigMtx = reshape(BigMtx, size(dps)[4], size(dps)[3])'
+        SmlMtx = BigMtx[OtherPara[1]:OtherPara[2], OtherPara[3]:OtherPara[4]]
+        dpList =
+            zeros((OtherPara[4] - OtherPara[3] + 1) * (OtherPara[2] - OtherPara[1] + 1), 1)
+        count = 0
         for ii = 1:OtherPara[2]-OtherPara[1]+1
-            for jj = 1: OtherPara[4]-OtherPara[3] + 1
-                count = count + 1;
-                dpList[count] = SmlMtx[ii,jj]
+            for jj = 1:OtherPara[4]-OtherPara[3]+1
+                count = count + 1
+                dpList[count] = SmlMtx[ii, jj]
             end
         end
-    elseif mode=="double-skip"
-        NewPxlNum = Int.(ceil.(size(dps)[3:4]./(OtherPara+1)))
-        dpList = zeros(NewPxlNum[1]*NewPxlNum[2],1)
+    elseif mode == "double-skip"
+        NewPxlNum = Int.(ceil.(size(dps)[3:4] ./ (OtherPara + 1)))
+        dpList = zeros(NewPxlNum[1] * NewPxlNum[2], 1)
         count = 0
         for ii = 1:NewPxlNum[1]
             for jj = 1:NewPxlNum[2]
                 count = count + 1
-                dpList[count] = (ii-1)*(OtherPara+1)*size(dps)[4] + (jj-1)*(OtherPara+1)+1
+                dpList[count] =
+                    (ii - 1) * (OtherPara + 1) * size(dps)[4] +
+                    (jj - 1) * (OtherPara + 1) +
+                    1
             end
         end
     end
-    trans_new = Array{Float64, 2}(undef,length(dpList), 2)
-    dpList=Int.(dpList)
-    if mode=="singledp"
-        trans_new[:,1]=trans_related[1,1]
-        trans_new[:,2]=trans_related[1,2]
+    trans_new = Array{Float64,2}(undef, length(dpList), 2)
+    dpList = Int.(dpList)
+    if mode == "singledp"
+        trans_new[:, 1] = trans_related[1, 1]
+        trans_new[:, 2] = trans_related[1, 2]
     else
-        trans_new[:,1]=trans_related[dpList,1]
-        trans_new[:,2]=trans_related[dpList,2]
+        trans_new[:, 1] = trans_related[dpList, 1]
+        trans_new[:, 2] = trans_related[dpList, 2]
     end
-    
-    if random_order==1
-        List_index=1:length(dpList)
-        List_index=shuffle(List_index)
-    else List_index=1:length(dpList)
+
+    if random_order == 1
+        List_index = 1:length(dpList)
+        List_index = shuffle(List_index)
+    else
+        List_index = 1:length(dpList)
     end
     return dpList, trans_new, List_index
 end
@@ -157,7 +170,8 @@ end
 
 function prestart(params::Parameters, dps::DiffractionPatterns)
     trans_related = init_trans(params, dps)
-    dpList, trans_related, List_index= generate_dpList(dps,trans_related,1,"double-skip",2)
+    dpList, trans_related, List_index =
+        generate_dpList(dps, trans_related, 1, "double-skip", 2)
     trans_exec = similar(trans_related)
     trans_exec[:, 1] =
         trans_related[:, 1] .- floor(minimum(trans_related[:, 1])) .+ params.ObjPadding
@@ -172,29 +186,49 @@ function prestart(params::Parameters, dps::DiffractionPatterns)
     return recon, trans_exec, dpList, List_index
 end
 
-function rmse(arr1::T1, arr2::T2) where {T1<:AbstractArray, T2<:AbstractArray}
+function rmse(arr1::T1, arr2::T2) where {T1<:AbstractArray,T2<:AbstractArray}
     return sqrt(sum((arr1 .- arr2) .^ 2))
 end
 
-function iterate(recon::Reconstruction,trans_exec,params::Parameters, dps::DiffractionPatterns, dpList, List_index)
-        current_rmse=0
-        obj = recon.Object.ObjectMatrix
-        probe = recon.Probe.ProbeMatrix
-        for count_dp=1:length(List_index)
-                sx = round(Int, trans_exec[List_index[count_dp],1]):round(Int,trans_exec[List_index[count_dp],1]+size(dps)[1]-1)
-                sy = round(Int,trans_exec[List_index[count_dp],2]):round(Int,trans_exec[List_index[count_dp],2]+size(dps)[2]-1)
-                y =(dpList[List_index[count_dp]]-1) ÷ size(dps)[3]+1
-                x = dpList[List_index[count_dp]]-(y-1)*size(dps)[3]
-                dp_current=Float32.(dps.DPs[:,:,x,y])
-                ew = obj[sx,sy] .* probe
-                ewf = Ptycho_fft2(ew)
-                ewfn = dp_current .* exp.(im.*angle.(ewf))
-                ew1 = Ptycho_ifft2(ewfn)
-                probe0 = probe
-                probe = probe .+ params.ProbeUpdate.*(ew1.-ew) .* conj.(obj[sx,sy]) ./maximum(abs.(obj[sx,sy]).^2)
-                obj[sx,sy] = obj[sx,sy] .+ params.ObjUpdate .*(ew1.-ew) .* conj.(probe0) ./maximum(abs.(probe0).^2)
-                current_rmse=current_rmse+rmse(abs.(ewf),Float64.(dp_current))
-        end
-        current_rmse=current_rmse/length(dps.DPs[1,1,:,:])
-        return Reconstruction(Object(obj), Probe(probe), recon.Iteration+1), current_rmse
+function iterate(
+    recon::Reconstruction,
+    trans_exec,
+    params::Parameters,
+    dps::DiffractionPatterns,
+    dpList,
+    List_index,
+)
+    current_rmse = 0
+    obj = recon.Object.ObjectMatrix
+    probe = recon.Probe.ProbeMatrix
+    for count_dp = 1:length(List_index)
+        sx =
+            round(Int, trans_exec[List_index[count_dp], 1]):round(
+                Int,
+                trans_exec[List_index[count_dp], 1] + size(dps)[1] - 1,
+            )
+        sy =
+            round(Int, trans_exec[List_index[count_dp], 2]):round(
+                Int,
+                trans_exec[List_index[count_dp], 2] + size(dps)[2] - 1,
+            )
+        y = (dpList[List_index[count_dp]] - 1) ÷ size(dps)[3] + 1
+        x = dpList[List_index[count_dp]] - (y - 1) * size(dps)[3]
+        dp_current = Float32.(dps.DPs[:, :, x, y])
+        ew = obj[sx, sy] .* probe
+        ewf = Ptycho_fft2(ew)
+        ewfn = dp_current .* exp.(im .* angle.(ewf))
+        ew1 = Ptycho_ifft2(ewfn)
+        probe0 = probe
+        probe =
+            probe .+
+            params.ProbeUpdate .* (ew1 .- ew) .* conj.(obj[sx, sy]) ./
+            maximum(abs.(obj[sx, sy]) .^ 2)
+        obj[sx, sy] =
+            obj[sx, sy] .+
+            params.ObjUpdate .* (ew1 .- ew) .* conj.(probe0) ./ maximum(abs.(probe0) .^ 2)
+        current_rmse = current_rmse + rmse(abs.(ewf), Float64.(dp_current))
+    end
+    current_rmse = current_rmse / length(dps.DPs[1, 1, :, :])
+    return Reconstruction(Object(obj), Probe(probe), recon.Iteration + 1), current_rmse
 end

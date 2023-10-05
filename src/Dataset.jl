@@ -28,10 +28,10 @@ function Parameters(;
     ScanStep::Real,
     ScanAngle::Real,
     Defocus::Real,
-    ObjUpdate::T=0.1,
-    ProbeUpdate::T=0.01,
-    ObjPadding::Integer=50,
-) where T<:AbstractFloat
+    ObjUpdate::T = 0.1,
+    ProbeUpdate::T = 0.01,
+    ObjPadding::Integer = 50,
+) where {T<:AbstractFloat}
     return Parameters(
         Voltage,
         Semiangle,
@@ -45,7 +45,7 @@ function Parameters(;
 end
 
 struct DiffractionPatterns{T<:Real}
-    DPs::AbstractArray{T, 4}
+    DPs::AbstractArray{T,4}
 end
 
 function size(dps::DiffractionPatterns)
@@ -53,7 +53,7 @@ function size(dps::DiffractionPatterns)
 end
 
 function length(dps::DiffractionPatterns)
-    return length(dps.DPs[1,1,:,:])
+    return length(dps.DPs[1, 1, :, :])
 end
 
 """function getindex(dps::DiffractionPatterns, range::Vector{UnitRange{Int}})

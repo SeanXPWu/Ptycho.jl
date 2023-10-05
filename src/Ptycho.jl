@@ -6,7 +6,7 @@ using KernelAbstractions
 
 using JLD2, HDF5, MAT
 
-using ImageView,Random
+using ImageView, Random
 
 import Base: size, length, iterate
 
