@@ -1,5 +1,5 @@
 using Revise
-using Ptycho, KernelAbstractions
+using Ptycho, CUDA
 using ImageView
 
 function main()
@@ -10,34 +10,26 @@ function main()
         ScanStep = 31.25,
         ScanAngle = -126,
         Defocus = -13500,
+        ObjUpdate = 1e-4
     )
 
     dps = load_dps("./test_data/", (127, 127))
 
-    println("Diffraction patterns loaded \nInitialsing...")
+    println("Diffraction patterns loaded")
 
-    recon, trans_exec = initialise_recon(params, dps)
+    iter_step = 50
+    backend = CUDABackend()
+    #precision = Float32
 
-    println("Initialisation finished \nStarting reconstruction...")
-
-    iter_step = 10
-    backend = CPU()
-    precision = Float32
-
-    rmse_list = Vector{Float64}(undef, iter_step)
-    for i = 1:iter_step
-        println("Current iteration : ", i)
-        @time "Iteration $i finished in" recon, rmse =
-            ePIE_iteration(recon, params, dps, trans_exec, backend, precision)
-        rmse_list[i] = rmse
-        println("Current RMSE : $rmse")
-    end
-
-    println("Reconstruction finished")
+    recon, _ = ePIE_iterations(params, dps, iter_step, backend)
 
     obj = recon.Object.ObjectMatrix
-    imshow(convert(Array{precision}, abs.(obj)))
-    return params, recon, rmse_list, dps, trans_exec
+
+    obj = convert(Array{Float32}, obj)
+    imshow(abs.(obj))
+    imshow(angle.(obj))
+
+    #return params, recon, dps, rmse
 end
 
-params, recon, rmse_list, dps, trans_exec = main()
+main()

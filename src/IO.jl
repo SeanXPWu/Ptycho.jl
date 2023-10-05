@@ -22,11 +22,11 @@ function load_dps(
     scansize::T,
     varname::String = "dp",
 ) where {T<:Tuple{Integer,Integer}}
-    files = readdir(dirpath, join = true, sort = false)
-    if length(files) != prod(scansize)
+    files = readdir(dirpath)
+    if length(files) < prod(scansize)
         error("Number of files in $dirpath does not match scan dimensions.")
     end
-    tmp = load_dp(files[1], varname)
+    tmp = load_dp("$dirpath/dp_1.mat", varname)
     x, y = Base.size(tmp)
     dps = Array{UInt8,4}(undef, x, y, scansize[1], scansize[2])
     for i = 1:length(files)

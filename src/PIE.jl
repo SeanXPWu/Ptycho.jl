@@ -1,4 +1,4 @@
-export initialise_recon, ePIE_iteration, get_rotational_offset
+export initialise_recon, ePIE_iterations, get_rotational_offset
 
 function get_rotational_offset(params::Parameters, dps::DiffractionPatterns)
     scanstep = params.Scan.ScanStep
@@ -48,64 +48,46 @@ Given a 4d data array of the dimension (x, y, z, w), where x and y are the dimen
 #    end
 #end
 
-@kernel function get_ew_kernel!(ew, obj, probe, sx, sy)
+@kernel function abs_max_kernel!(abs_max, obj, probe)
     i, j = @index(Global, NTuple)
-    ew[i, j] = probe[i, j] * obj[sx+i-1, sy+j-1]
-end
-
-function get_ew!(ew, obj, probe, sx, sy, backend)
-    kernel! = get_ew_kernel!(backend)
-    kernel!(ew, obj, probe, sx, sy, ndrange = size(probe))
-end
-
-@kernel function abs_max_kernel!(abs_max, obj, probe, sx, sy)
-    i, j = @index(Global, NTuple)
-    if abs_max[1] < abs(obj[i+sx-1, j+sy-1])^2
-        abs_max[1] = abs(obj[i+sx-1, j+sy-1])^2
+    tmp = abs(obj[i, j])^2
+    if abs_max[1] < tmp
+        abs_max[1] = tmp
     end
-    if abs_max[2] < abs(probe[i, j])^2
-        abs_max[2] = abs(probe[i, j])^2
+    tmp = abs(probe[i, j])^2
+    if abs_max[2] < tmp
+        abs_max[2] = tmp
     end
 end
 
-function abs_max!(abs_max, obj, probe, sx, sy, backend)
-    kernel! = abs_max_kernel!(backend)
-    kernel!(abs_max, obj, probe, sx, sy, ndrange = size(probe))
-end
-
-@kernel function update_kernel!(obj, probe, ew, uew, sx, sy, oup, pup, abs_max)
+@kernel function update_kernel!(obj, probe, ew, uew, oup, pup, abs_max)
     i, j = @index(Global, NTuple)
-    obj[i+sx-1, j+sy-1] += oup * (uew[i, j] - ew[i, j]) * conj(probe[i, j]) / abs_max[2]
-    probe[i, j] += pup * (uew[i, j] - ew[i, j]) * conj(obj[i+sx-1, j+sy-1]) / abs_max[1]
+    obj[i, j] += oup * (uew[i, j] - ew[i, j]) * conj(probe[i, j]) / abs_max[2]
+    probe[i, j] += pup * (uew[i, j] - ew[i, j]) * conj(obj[i, j]) / abs_max[1]
 end
 
-function update!(obj, probe, ew, uew, sx, sy, oup, pup, abs_max, backend)
-    kernel! = update_kernel!(backend)
-    kernel!(obj, probe, ew, uew, sx, sy, oup, pup, abs_max, ndrange = size(probe))
-end
-
-function ePIE_iteration(
-    recon::Reconstruction,
+function ePIE_iterations(
     params::Parameters,
     dps::DiffractionPatterns,
-    trans_exec::AbstractArray,
+    iterations::Integer,
     backend::B = CPU(),
     precision::DataType = Float32,
 ) where {B<:Backend}
+    println("Initialsing...")
+    @time "Initialisation finished in" begin
+    recon, trans_exec = initialise_recon(params, dps)
     a, b, x, y = size(dps)
     sqlen = sqrt(a * b)
     complexprecision = Complex{precision}
-    obj = to_backend(backend, complexprecision, recon.Object.ObjectMatrix)
+    object = to_backend(backend, complexprecision, recon.Object.ObjectMatrix)
     probe = to_backend(backend, complexprecision, recon.Probe.ProbeMatrix)
-    dps = to_backend(backend, precision, dps.DPs)
+    dps = to_backend(backend, eltype(dps.DPs), dps.DPs)
 
     ew = similar(probe)
-    ew_s = similar(probe)
-    ew_fs = similar(probe)
     ewf = similar(probe)
-    uewf_s = similar(probe)
-    uewf_fs = similar(probe)
+    uewf = similar(probe)
     uew = similar(probe)
+    tmp = similar(probe)
 
     #uew = similar(probe)
     fp = plan_fft(ew)
@@ -113,42 +95,50 @@ function ePIE_iteration(
 
     abs_max = allocate(backend, precision, 2)
 
-    current_rmse = 0.0
+    objup = params.ObjUpdate
+    probeup = params.ProbeUpdate
 
-    for j = 1:y
-        for i = 1:x
-            dp = view(dps, :, :, i, j)
-            sx, sy = @view trans_exec[j, i, :]
-            get_ew!(ew, obj, probe, sx, sy, backend)
+    abs_max! = abs_max_kernel!(backend)
+    update! = update_kernel!(backend)
 
-            fftshift!(ew_s, ew)
-            mul!(ew_fs, fp, ew_s)
-            ifftshift!(ewf, ew_fs)
-            ewf ./= sqlen
+    rmse_ls = Vector{Float64}(undef, iterations)
+    end
 
-            current_rmse += rmse(abs.(ewf), dp)
-            uewf = dp .* exp.(im .* angle.(ewf))
+    println("Start reconstruction...")
+    for iter = 1:iterations
+        println("Current iteration : ", iter)
+        @time "Iteration finished in" begin
+            current_rmse = 0.0
+            for j = 1:y
+                for i = 1:x
+                    sx, sy = @view trans_exec[j, i, :]
+                    dp = view(dps, :, :, i, j)
+                    obj = view(object, sx:sx+a-1, sy:sy+b-1)
+                    
+                    ew .= probe .* obj
 
-            fftshift!(uewf_fs, uewf)
-            mul!(uewf_s, ifp, uewf_fs)
-            ifftshift!(uew, uewf_s)
-            uew .*= sqlen
+                    fftshift!(ewf, ew)
+                    mul!(tmp, fp, ewf)
+                    ifftshift!(ewf, tmp)
+                    ewf ./= sqlen
 
-            abs_max!(abs_max, obj, probe, sx, sy, backend)
-            update!(
-                obj,
-                probe,
-                ew,
-                uew,
-                sx,
-                sy,
-                params.ObjUpdate,
-                params.ProbeUpdate,
-                abs_max,
-                backend,
-            )
+                    current_rmse += rmse(abs.(ewf), dp)
+                    uewf .= dp .* exp.(im .* angle.(ewf))
+
+                    fftshift!(uew, uewf)
+                    mul!(tmp, ifp, uew)
+                    ifftshift!(uew, tmp)
+                    uew .*= sqlen
+
+                    abs_max!(abs_max, obj, probe, ndrange = size(probe))
+                    update!(obj, probe, ew, uew, objup, probeup, abs_max, ndrange = size(probe))
+                end
+            end
+            current_rmse /= x * y
+            rmse_ls[iter] = current_rmse
+            println("Current RMSE: $current_rmse")
         end
     end
-    current_rmse /= x * y
-    return Reconstruction(Object(obj), Probe(probe), recon.Iteration + 1), current_rmse
+    println("Reconstruction finished")
+    return Reconstruction(Object(object), Probe(probe), iterations), rmse_ls
 end
