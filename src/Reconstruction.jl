@@ -187,7 +187,7 @@ function prestart(params::Parameters, dps::DiffractionPatterns)
 end
 
 function rmse(arr1::T1, arr2::T2) where {T1<:AbstractArray,T2<:AbstractArray}
-    return sqrt(sum((arr1 .- arr2) .^ 2))
+    return sqrt(sum((arr1 .- arr2) .^ 2)/length(arr1))
 end
 
 function iterate(
