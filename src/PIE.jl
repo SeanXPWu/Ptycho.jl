@@ -97,6 +97,7 @@ function ePIE_iterations(
         println("Current iteration : ", iter)
         @time "Iteration finished in" begin
             current_rmse = 0.0
+            abs_max .= 0.0
             for j = 1:y
                 for i = 1:x
                     sx, sy = @view trans_exec[j, i, :]

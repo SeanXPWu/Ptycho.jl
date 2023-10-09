@@ -15,7 +15,7 @@ include("Dataset.jl")
 include("Reconstruction.jl")
 include("IO.jl")
 include("PIE.jl")
-
+include("DM.jl")
 include("Iteration.jl")
 
 end
